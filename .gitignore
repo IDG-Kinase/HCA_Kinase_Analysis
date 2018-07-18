@@ -1,2 +1,5 @@
 */ica_*
 */*correlations.rds
+
+*.Rhistory
+.Rproj*
