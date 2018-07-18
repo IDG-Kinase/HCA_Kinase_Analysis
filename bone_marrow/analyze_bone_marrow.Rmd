@@ -1,8 +1,6 @@
 ---
 title: "HCA - Bone Marrow Analysis"
-output:
-  html_document:
-    keep_md: true
+output: github_document
 ---
 
 # Packages and Shared Code
