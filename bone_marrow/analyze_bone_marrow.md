@@ -5,7 +5,7 @@ output:
     keep_md: true
 ---
 
-#Packages and Shared Code
+# Packages and Shared Code
 
 
 ```r
@@ -21,7 +21,7 @@ suppressPackageStartupMessages(library(here))
 source(here('shared_functions.R'))
 ```
 
-#Data Download
+# Data Download
 
 
 ```r
@@ -31,7 +31,7 @@ if (! file.exists(here('bone_marrow','ica_bone_marrow_h5.h5'))) {
 }
 ```
 
-#Data Loading
+# Data Loading
 
 Loading this data takes some time and lots of memory (> 16 Gigs).
 
@@ -45,7 +45,7 @@ bone_marrow = read_h5_file_to_tidy(here('bone_marrow','ica_bone_marrow_h5.h5')) 
 ```
 
 
-#Exploritory Data Analysis
+# Exploritory Data Analysis
 
 Let's get some quick summaries of the full data set, namely the total number of mapped reads per cell and the total number of unique genes per cell.
 
@@ -110,7 +110,7 @@ ggplot(per_cell_summary,aes(x=unique_genes,y=read_count)) +
 
 As expected, low unique gene counts somewhat line up with the read count sum.
 
-#Data Filtering and Results
+# Data Filtering and Results
 
 Let's run the filtering to remove the problematic barcodes and then get out the kinase reads.
 
@@ -140,7 +140,7 @@ per_kinase_stats = bone_marrow_kinases %>% group_by(gene_names,class) %>%
             read_variance = var(counts))
 ```
 
-##Summary Results
+## Summary Results
 
 Now let's run through some basic results:
 
@@ -152,7 +152,7 @@ Now let's run through some basic results:
 
 
 
-##Summary Distributions
+## Summary Distributions
 
 
 ```r
@@ -180,7 +180,7 @@ ggplot(per_kinase_stats,aes(x=total_cells,y=stat(density),color=class, fill=clas
 
 ![](analyze_bone_marrow_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
 
-###Most Expressed Dark Kinases
+### Most Expressed Dark Kinases
 
 
 gene_names   class    total_reads   total_cells   read_variance
@@ -196,7 +196,7 @@ MARK3        Dark           22222         21062       0.0585021
 PAN3         Dark           21182         20017       0.0628096
 PRKACB       Dark           20652         19334       0.0771816
 
-###Most Expressed Light Kinases
+### Most Expressed Light Kinases
 
 gene_names   class    total_reads   total_cells   read_variance
 -----------  ------  ------------  ------------  --------------
@@ -211,7 +211,9 @@ PRKCB        Light          58170         47935       0.2643143
 MAP3K8       Light          57538         39816       0.9426091
 ROCK1        Light          53884         47740       0.1441439
 
-##Kinase Correlations
+## Kinase Correlations
+
+I wrote a bit of code to do cross-correlation analysis on the expression levels of each of the kinases compared with one another, but I don't really know what to do with it. It's also time consuming, so I've commented it out.
 
 
 ```r

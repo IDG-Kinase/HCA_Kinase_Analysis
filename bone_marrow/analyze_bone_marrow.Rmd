@@ -5,7 +5,7 @@ output:
     keep_md: true
 ---
 
-#Packages and Shared Code
+# Packages and Shared Code
 
 ```{r}
 suppressPackageStartupMessages(library(rhdf5))
@@ -19,7 +19,7 @@ suppressPackageStartupMessages(library(here))
 source(here('shared_functions.R'))
 ```
 
-#Data Download
+# Data Download
 
 ```{r downloading}
 if (! file.exists(here('bone_marrow','ica_bone_marrow_h5.h5'))) {
@@ -28,7 +28,7 @@ if (! file.exists(here('bone_marrow','ica_bone_marrow_h5.h5'))) {
 }
 ```
 
-#Data Loading
+# Data Loading
 
 Loading this data takes some time and lots of memory (> 16 Gigs).
 ```{r loading}
@@ -37,7 +37,7 @@ bone_marrow = read_h5_file_to_tidy(here('bone_marrow','ica_bone_marrow_h5.h5')) 
 ```
 
 
-#Exploritory Data Analysis
+# Exploritory Data Analysis
 
 Let's get some quick summaries of the full data set, namely the total number of mapped reads per cell and the total number of unique genes per cell.
 ```{r summary_read_count}
@@ -86,7 +86,7 @@ ggplot(per_cell_summary,aes(x=unique_genes,y=read_count)) +
 
 As expected, low unique gene counts somewhat line up with the read count sum.
 
-#Data Filtering and Results
+# Data Filtering and Results
 
 Let's run the filtering to remove the problematic barcodes and then get out the kinase reads.
 
@@ -104,7 +104,7 @@ per_kinase_stats = bone_marrow_kinases %>% group_by(gene_names,class) %>%
             read_variance = var(counts))
 ```
 
-##Summary Results
+## Summary Results
 
 Now let's run through some basic results:
 
@@ -120,7 +120,7 @@ ggplot(bone_marrow_filt_per_cell_summary,aes(x=unique_genes,y=read_count)) +
   labs(x='Unique Gene Count',y="Read Count Sum")
 ```
 
-##Summary Distributions
+## Summary Distributions
 
 ```{r}
 ggplot(per_kinase_stats,aes(x=total_reads,y=stat(density),color=class, fill=class)) + 
@@ -134,7 +134,7 @@ ggplot(per_kinase_stats,aes(x=total_cells,y=stat(density),color=class, fill=clas
   labs(color="Kinase\nType",fill="Kinase\nType",x="Total Cell Count",y="Density")
 ```
 
-###Most Expressed Dark Kinases
+### Most Expressed Dark Kinases
 
 ```{r, echo=F,results='asis'}
 top_dark_kinases = per_kinase_stats %>% 
@@ -144,7 +144,7 @@ top_dark_kinases = per_kinase_stats %>%
 knitr::kable(top_dark_kinases[1:10,])
 ```
 
-###Most Expressed Light Kinases
+### Most Expressed Light Kinases
 ```{r, echo=F,results='asis'}
 top_light_kinases = per_kinase_stats %>% 
   filter(class == "Light") %>% 
@@ -153,7 +153,9 @@ top_light_kinases = per_kinase_stats %>%
 knitr::kable(top_light_kinases[1:10,])
 ```
 
-##Kinase Correlations
+## Kinase Correlations
+
+I wrote a bit of code to do cross-correlation analysis on the expression levels of each of the kinases compared with one another, but I don't really know what to do with it. It's also time consuming, so I've commented it out.
 
 ```{r}
 # kinase_correlations = correlate_single_cell_read_counts(bone_marrow_kinases)
