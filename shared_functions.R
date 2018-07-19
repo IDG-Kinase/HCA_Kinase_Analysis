@@ -37,7 +37,6 @@ correlate_single_cell_read_counts = function(tidy_10X, min_shared_cells = 100) {
   
   gene_list = unique(tidy_10X$gene_names)
   for (gene_1_index in 1:(length(gene_list)-1)) {
-    print(gene_1_index)
     gene_1 = gene_list[gene_1_index]
     gene_1_set = tidy_10X %>% 
       select(gene_names,barcode,counts,class) %>% 
