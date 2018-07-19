@@ -49,7 +49,8 @@ ggplot(per_cell_summary,aes(x=read_count)) +
   theme_berginski() +
   labs(x='Read Count Sum Per Cell',y='')
 ```
-So their is a fair bit of skew in this data past the apparent double peak at the lower end of the disitribution. Let's take a closer look at the lower end of the distribution:
+
+So there is a fair bit of skew in this data past the apparent double peak at the lower end of the disitribution. Let's take a closer look at the lower end of the distribution:
 
 ```{r read_count_zoom}
 ggplot(per_cell_summary,aes(x=read_count)) + 
@@ -95,11 +96,16 @@ bone_marrow_kinases = bone_marrow_filt %>% filter(ensembl_gene_id %in% all_kinas
   left_join(all_kinases)
 
 bone_marrow_dark_kinases = bone_marrow_kinases %>% filter(class == "Dark")
+bone_marrow_light_kinases = bone_marrow_kinases %>% filter(class == "Light")
 
 per_kinase_stats = bone_marrow_kinases %>% group_by(gene_names,class) %>%
   summarise(total_reads = sum(counts), 
             total_cells = length(unique(barcode)), 
             read_variance = var(counts))
+
+per_cell_stats = bone_marrow_kinases %>% group_by(barcode,class) %>%
+  summarise(num_kinases = length(unique(gene_names)),
+            total_kinase_reads = sum(counts))
 ```
 
 ## Summary Results
@@ -108,7 +114,7 @@ Now let's run through some basic results:
 
 * `r length(unique(bone_marrow_kinases$ensembl_gene_id))` unique kinases are represented in the data
 * `r round(100*sum(bone_marrow_kinases$counts)/sum(bone_marrow_filt$counts),2)`% of the mapped reads are to a kinase
-* `r round(100*length(unique(bone_marrow_kinases$barcode))/length(unique(bone_marrow_filt$barcode)))`% of the bone marrow cells express at least one kinase
+* `r round(100*length(unique(bone_marrow_kinases$barcode))/length(unique(bone_marrow_filt$barcode)))`% of the cells express at least one kinase
 * `r round(100*length(unique(bone_marrow_dark_kinases$barcode))/length(unique(bone_marrow_filt$barcode)))`% of the cells express a dark kinase
 
 
@@ -120,16 +126,40 @@ ggplot(bone_marrow_filt_per_cell_summary,aes(x=unique_genes,y=read_count)) +
 
 ## Summary Distributions
 
+### Per Kinase Plots
+
+I've summed up the total number of reads for each of the kinases across all of the cells in the filtered data set. Let's take a look at the distribution of the summed read counts splitting on the Dark/Light kinase sets.
+
 ```{r}
 ggplot(per_kinase_stats,aes(x=total_reads,y=stat(density),color=class, fill=class)) + 
   geom_histogram(position="dodge") + theme_berginski() +
   labs(color="Kinase\nType",fill="Kinase\nType",x="Total Reads",y="Density")
 ```
 
+I've also figured out how many cells express each given kinase. For reference, there are `r length(unique(bone_marrow_filt$barcode))` cells in the data set.
+
 ```{r}
 ggplot(per_kinase_stats,aes(x=total_cells,y=stat(density),color=class, fill=class)) + 
   geom_histogram(position="dodge") + theme_berginski() +
   labs(color="Kinase\nType",fill="Kinase\nType",x="Total Cell Count",y="Density")
+```
+
+### Per Kinase Plots
+
+Another question involves looking at the expressed kinases per cell, namely how many of the kinases are present in each cell. For reference, the median cell expresses `r median(per_cell_stats$num_kinases)` kinases.
+
+```{r}
+ggplot(per_cell_stats,aes(x=num_kinases,y=stat(density))) + 
+  geom_histogram(position="dodge",binwidth=1) + theme_berginski() +
+  labs(color="Kinase\nType",fill="Kinase\nType",x="Number of Kinases Per Cell",y="Density")
+```
+
+OK, what about the Dark/Light split? The following plot is the same as above, except with the dark/light kinases split into seperate columns. For reference, the median number of dark kinases per cell is `r median(filter(per_cell_stats,class=="Dark")$num_kinases)`, while the median number of light kinases is `r median(filter(per_cell_stats,class=="Light")$num_kinases)`.
+
+```{r}
+ggplot(per_cell_stats,aes(x=num_kinases,y=stat(density),color=class,fill=class)) + 
+  geom_histogram(position="dodge",binwidth=1) + theme_berginski() +
+  labs(color="Kinase\nType",fill="Kinase\nType",x="Number of Kinases Per Cell",y="Density")
 ```
 
 ### Most Expressed Dark Kinases
@@ -156,7 +186,7 @@ knitr::kable(top_light_kinases[1:10,])
 I wrote a bit of code to do cross-correlation analysis on the expression levels of each of the kinases compared with one another, but I don't really know what to do with it. It's also time consuming, so I've commented it out.
 
 ```{r}
-# kinase_correlations = correlate_single_cell_read_counts(bone_marrow_kinases)
-# 
-# saveRDS(kinase_correlations,here('bone_marrow','bone_marrow_kinase_correlations.rds'))
+kinase_correlations = correlate_single_cell_read_counts(bone_marrow_kinases)
+
+saveRDS(kinase_correlations,here('bone_marrow','bone_marrow_kinase_correlations.rds'))
 ```
