@@ -1,4 +1,4 @@
-# HCA_Kinase_Analysis
+# HCA Kinase Analysis
 
 This repo has the code I've written to take a first pass at quantifying the kinases present in the [Human Cell Atlas Preview Data Sets](https://preview.data.humancellatlas.org]). I've only looked at the human data that has already been processed to the point that we have counts of mRNA reads mapped to human genes, so the bone marrow and cord blood data sets.
 
