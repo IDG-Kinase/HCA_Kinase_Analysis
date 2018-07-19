@@ -144,7 +144,7 @@ ggplot(per_kinase_stats,aes(x=total_cells,y=stat(density),color=class, fill=clas
   labs(color="Kinase\nType",fill="Kinase\nType",x="Total Cell Count",y="Density")
 ```
 
-### Per Kinase Plots
+### Per Cell Plots
 
 Another question involves looking at the expressed kinases per cell, namely how many of the kinases are present in each cell. For reference, the median cell expresses `r median(per_cell_stats$num_kinases)` kinases.
 
@@ -186,7 +186,7 @@ knitr::kable(top_light_kinases[1:10,])
 I wrote a bit of code to do cross-correlation analysis on the expression levels of each of the kinases compared with one another, but I don't really know what to do with it. It's also time consuming, so I've commented it out.
 
 ```{r}
-kinase_correlations = correlate_single_cell_read_counts(cord_blood_kinases)
-
-saveRDS(kinase_correlations,here('cord_blood','cord_blood_kinase_correlations.rds'))
+# kinase_correlations = correlate_single_cell_read_counts(cord_blood_kinases)
+# 
+# saveRDS(kinase_correlations,here('cord_blood','cord_blood_kinase_correlations.rds'))
 ```
