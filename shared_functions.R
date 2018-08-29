@@ -76,7 +76,7 @@ correlate_single_cell_read_counts = function(tidy_10X, min_shared_cells = 100) {
 }
 
 gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells = NA,
-                                    max_cluster_size = 5) {
+                                    max_cluster_size = Inf) {
   
   total_cells = length(unique(tidy_10X$barcode))
   print(paste0('Found ', total_cells, ' cells in the data set.'))
@@ -162,7 +162,12 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
         }
       }
     }
-    # overrepresented[[cluster_num]] = as.data.frame(over_represented[[cluster_num]])
+    
+    if (length(overrepresented[[cluster_num]]) != 0) {
+      overrepresented[[cluster_num]] = as.data.frame(overrepresented[[cluster_num]]) %>%
+        mutate(overlap_diff = overlap_observe - overlap_expect)
+    }
+    
     print(paste0('Found ', length(barcode_sets[[cluster_num]]), 
                  ' sets, of which ', length(overrepresented[[cluster_num]]$gene_set), 
                  ' are over-represented.'))
