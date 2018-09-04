@@ -106,7 +106,7 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
   print(paste0('Found ',length(barcode_sets[[1]]), ' genes present in at least ',
                min_shared_cells, ' cells.'))
 
-  overrepresented = list()
+  cluster_props = list()
   cluster_num = 1
   
   while (length(names(barcode_sets[[cluster_num]])) > 0 & cluster_num < max_cluster_size) {
@@ -117,7 +117,7 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
     previous_kinase_combinations = names(barcode_sets[[prev_cluster_size]])
     
     barcode_sets[[cluster_num]] = list()
-    overrepresented[[cluster_num]] = list()
+    cluster_props[[cluster_num]] = list()
     
     print(paste0('Working on size ', cluster_num, " clusters."))
     pb <- progress_bar$new(total = length(previous_kinase_combinations))
@@ -152,26 +152,23 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
           expected_overlap = expected_overlap*percent_cells[[gene_name]]
         }
         
-        if (length(overlap_set) > expected_overlap) {
-          overrepresented[[cluster_num]]$gene_set = c(overrepresented[[cluster_num]]$gene_set,
-                                                     glue::collapse(sort(gene_set),sep="|"))
-          overrepresented[[cluster_num]]$overlap_expect = c(overrepresented[[cluster_num]]$overlap_expect,
-                                                           expected_overlap)
-          overrepresented[[cluster_num]]$overlap_observe = c(overrepresented[[cluster_num]]$overlap_observe,
-                                                            length(overlap_set))
-        }
+        cluster_props[[cluster_num]]$gene_set = c(cluster_props[[cluster_num]]$gene_set,
+                                                  glue::collapse(sort(gene_set),sep="|"))
+        cluster_props[[cluster_num]]$overlap_expect = c(cluster_props[[cluster_num]]$overlap_expect,
+                                                        expected_overlap)
+        cluster_props[[cluster_num]]$overlap_observe = c(cluster_props[[cluster_num]]$overlap_observe,
+                                                         length(overlap_set))
       }
     }
     
-    if (length(overrepresented[[cluster_num]]) != 0) {
-      overrepresented[[cluster_num]] = as.data.frame(overrepresented[[cluster_num]]) %>%
-        mutate(overlap_diff = overlap_observe - overlap_expect)
+    if (length(cluster_props[[cluster_num]]) != 0) {
+      cluster_props[[cluster_num]] = as.data.frame(cluster_props[[cluster_num]]) %>%
+        mutate(overlap_diff = overlap_observe - overlap_expect) %>%
+        mutate(overlap_diff_percent = overlap_diff/total_cells)
     }
     
-    print(paste0('Found ', length(barcode_sets[[cluster_num]]), 
-                 ' sets, of which ', length(overrepresented[[cluster_num]]$gene_set), 
-                 ' are over-represented.'))
+    print(paste0('Found ', length(barcode_sets[[cluster_num]]), ' sets.'))
   }
-  overrepresented
+  cluster_props
 }
 
