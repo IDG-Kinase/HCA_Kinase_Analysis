@@ -21,13 +21,17 @@ read_h5_file_to_tidy = function(h5_file) {
   return(counts_and_gene_index)
 }
 
-filter_single_cell = function(tidy_10X, read_total_range = c(-Inf,Inf), unique_genes_range = c(-Inf,Inf)) {
+filter_single_cell = function(tidy_10X, read_total_range = c(-Inf,Inf),
+                              unique_genes_range = c(-Inf,Inf), 
+                              mt_range = c(-Inf, Inf)) {
   
   passed_cells = tidy_10X %>% group_by(barcode) %>%
     summarise(read_counts = sum(counts),
-              unique_genes = n()) %>%
+              unique_genes = n(),
+              mt_perc = sum(counts[grep('MT', gene_names)])/sum(counts)*100) %>%
     filter(between(read_counts, read_total_range[1], read_total_range[2]),
-           between(unique_genes, unique_genes_range[1], unique_genes_range[2]))
+           between(unique_genes, unique_genes_range[1], unique_genes_range[2]),
+           between(mt_perc, mt_range[1], mt_range[2]))
   
   tidy_10X = tidy_10X %>% filter(barcode %in% passed_cells$barcode)
 }
