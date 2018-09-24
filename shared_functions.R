@@ -82,8 +82,13 @@ correlate_single_cell_read_counts = function(tidy_10X, min_shared_cells = 100) {
   correlation_sets = data.frame(correlation_sets)
 }
 
-gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells = NA,
-                                    max_cluster_size = Inf) {
+###############################################################################
+# Gene Set Clustering
+###############################################################################
+gather_gene_sets = function(tidy_10X, 
+                            min_shared_cells = 100, 
+                            min_percent_cells = NA,
+                            max_cluster_size = Inf) {
   
   total_cells = length(unique(tidy_10X$barcode))
   print(paste0('Found ', total_cells, ' cells in the data set.'))
@@ -92,27 +97,32 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
     min_shared_cells = round(total_cells*min_percent_cells);
   }
   
+  tidy_10X = tidy_10X %>% left_join(
+    data.frame(barcode = unique(tidy_10X$barcode)) %>% mutate(barcode_num = 1:n())
+  )
+  
   barcode_sets = list()
   barcode_sets[[1]] = list()
   
   percent_cells = list()
   library(progress)
   print('Working on gathering cell ID barcodes for each gene.')
-  pb <- progress_bar$new(total = length(unique(tidy_10X$symbol)))
+  pb <- progress_bar$new(format = "[:bar] :percent eta: :eta",
+                         total = length(unique(tidy_10X$symbol)))
   for (gene in unique(tidy_10X$symbol)) {
     pb$tick()
     temp = tidy_10X %>%
       filter(symbol == gene) %>%
-      select(barcode)
+      select(barcode_num)
     
     if (dim(temp)[1] >= min_shared_cells) {
-      barcode_sets[[1]][[gene]] = temp$barcode
+      barcode_sets[[1]][[gene]] = temp$barcode_num
       percent_cells[[gene]] = length(barcode_sets[[1]][[gene]])/total_cells
     }
   }
   print(paste0('Found ',length(barcode_sets[[1]]), ' genes present in at least ',
                min_shared_cells, ' cells.'))
-
+  
   cluster_props = list()
   cluster_num = 1
   
@@ -127,7 +137,8 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
     cluster_props[[cluster_num]] = list()
     
     print(paste0('Working on size ', cluster_num, " clusters."))
-    pb <- progress_bar$new(total = length(previous_kinase_combinations))
+    pb <- progress_bar$new(format = "[:bar] :percent eta: :eta",
+                           total = length(previous_kinase_combinations))
     
     tested = list()
     for (this_combination in previous_kinase_combinations) {
@@ -136,7 +147,7 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
       starting_gene_set = strsplit(this_combination,'\\|')[[1]]
       
       search_set = setdiff(names(barcode_sets[[1]]),starting_gene_set)
-      
+
       for (this_gene in search_set) {
         gene_set = c(starting_gene_set,this_gene)
         full_gene_set = glue::collapse(sort(c(gene_set)),sep="|");
@@ -153,7 +164,7 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
         } else {
           next;
         }
-
+        
         expected_overlap = percent_cells[[gene_set[1]]]*total_cells;
         for (gene_name in gene_set[2:length(gene_set)]) {
           expected_overlap = expected_overlap*percent_cells[[gene_name]]
@@ -174,8 +185,8 @@ gather_gene_sets = function(tidy_10X, min_shared_cells = 100, min_percent_cells 
         mutate(overlap_diff_percent = overlap_diff/total_cells)
     }
     
-    print(paste0('Found ', length(barcode_sets[[cluster_num]]), ' sets.'))
+    print(paste0('Found ', length(barcode_sets[[cluster_num]]), 
+                 ' sets, tested ', length(tested), ' sets.'))
   }
   cluster_props
 }
-
