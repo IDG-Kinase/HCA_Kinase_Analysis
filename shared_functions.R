@@ -209,7 +209,7 @@ overlap_gene_sets <- function(gene_set,barcode_sets,cluster_num,min_shared_cells
 }
 
 
-gather_gene_set_parallel <- function(tidy_10X, 
+gather_gene_sets_parallel <- function(tidy_10X, 
                                      min_shared_cells = 100, 
                                      min_percent_cells = NA,
                                      max_cluster_size = Inf,
@@ -263,23 +263,7 @@ gather_gene_set_parallel <- function(tidy_10X,
                          rep(1:(parallel::detectCores()-1),
                              length.out = dim(to_test)[1]))
   
-  overlap_gene_sets <- function(gene_set,barcode_sets,cluster_num,min_shared_cells) {
-    overlap_set = list()
-    for (this_index in 1:dim(gene_set)[1]) {
-      previous_set = as.character(gene_set[this_index,]$previous_set);
-      added_gene = as.character(gene_set[this_index,]$added_gene);
-      barcode_overlap = intersect(barcode_sets[[cluster_num]][[previous_set]],
-                                  barcode_sets[[1]][[added_gene]])
-      
-      if (length(barcode_overlap) > min_shared_cells) {
-        split_previous_set = strsplit(previous_set,'\\|')[[1]]
-        full_gene_set = glue::collapse(sort(c(previous_set,added_gene)),sep="|");
-        overlap_set[[full_gene_set]] = barcode_overlap;
-      }
-    }
-    overlap_set
-  }
-  
+  library(parallel)
   overlap_sets_split = mclapply(split_doublets,
                                 function(x) { overlap_gene_sets(x,barcode_sets,1,min_shared_cells); },
                                 mc.cores=num_cores);
