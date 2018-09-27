@@ -208,13 +208,30 @@ overlap_gene_sets <- function(gene_set,barcode_sets,cluster_num,min_shared_cells
   overlap_set
 }
 
+find_potential_gene_overlap <- function(previous_gene_combinations_subset, previous_gene_combinations) {
+  to_test = data.frame(previous_set=as.character(),added_gene=as.character())
+  for (this_combination in previous_gene_combinations_subset) {
+    starting_gene_set = strsplit(this_combination,'\\|')[[1]]
+    
+    search_set = glue::collapse(starting_gene_set[2:length(starting_gene_set)],sep="\\|")
+    
+    matching_clusters = grep(paste0('^',search_set),previous_gene_combinations, value=TRUE)
+    last_gene = sapply(matching_clusters, function(x) { tail(strsplit(x,'\\|')[[1]],1) })
+    if (length(last_gene) == 0) {
+      next;
+    }
+    to_test = to_test %>% add_row(previous_set = this_combination,added_gene = last_gene)
+  }
+  to_test
+}
 
 gather_gene_sets_parallel <- function(tidy_10X, 
                                      min_shared_cells = 100, 
                                      min_percent_cells = NA,
                                      max_cluster_size = Inf,
-                                     num_cores = NA,
-                                     parallel_process_set_size = 100000) {
+                                     num_cores = NA) {
+  
+  num_cores = parallel::detectCores()-1
   
   total_cells = length(unique(tidy_10X$barcode))
   print(paste0('Found ', total_cells, ' cells in the data set.'))
@@ -231,36 +248,26 @@ gather_gene_sets_parallel <- function(tidy_10X,
     data.frame(barcode = unique(tidy_10X$barcode)) %>% mutate(barcode_num = 1:n())
   )
   
-  barcode_sets = list()
-  barcode_sets[[1]] = list()
+  print('Working on gathering cell ID barcodes for each gene.')  
   
-  percent_cells = list()
-  library(progress)
-  print('Working on gathering cell ID barcodes for each gene.')
-  pb <- progress_bar$new(format = "[:bar] :percent eta: :eta",
-                         total = length(unique(tidy_10X$symbol)))
-  for (gene in unique(tidy_10X$symbol)) {
-    pb$tick()
-    temp = tidy_10X %>%
-      filter(symbol == gene) %>%
-      select(barcode_num)
-    
-    if (dim(temp)[1] >= min_shared_cells) {
-      barcode_sets[[1]][[gene]] = temp$barcode_num
-      percent_cells[[gene]] = length(barcode_sets[[1]][[gene]])/total_cells
+  barcode_sets = list()
+  barcode_sets[[1]] = split(tidy_10X$barcode_num,tidy_10X$symbol, drop=TRUE)
+  for (this_gene in names(barcode_sets[[1]])) {
+    if (length(barcode_sets[[1]][[this_gene]]) < min_shared_cells) {
+      barcode_sets[[1]][[this_gene]] <- NULL
     }
   }
   print(paste0('Found ',length(barcode_sets[[1]]), ' genes present in at least ',
                min_shared_cells, ' cells.'))
   
-  print("Working on building possible 2 clusters.")  
+  print("Working on building possible 2 clusters.")
   to_test = as.data.frame(t(combn(names(barcode_sets[[1]]),2)))
   names(to_test) <- c('previous_set','added_gene')
   to_test$previous_set = as.character(to_test$previous_set)
   to_test$added_gene = as.character(to_test$added_gene)
   
   split_doublets = split(to_test,
-                         rep(1:(parallel::detectCores()-1),
+                         rep(1:num_cores,
                              length.out = dim(to_test)[1]))
   
   library(parallel)
@@ -268,68 +275,47 @@ gather_gene_sets_parallel <- function(tidy_10X,
                                 function(x) { overlap_gene_sets(x,barcode_sets,1,min_shared_cells); },
                                 mc.cores=num_cores);
   
-  barcode_sets[[2]] = list()
+  cluster_num = 2;
+  
+  barcode_sets[[cluster_num]] = list()
   for (this_overlap_set in overlap_sets_split) {
     for (this_combo in names(this_overlap_set)) {
-      barcode_sets[[2]][[this_combo]] = this_overlap_set[[this_combo]]
+      barcode_sets[[cluster_num]][[this_combo]] = this_overlap_set[[this_combo]]
     }
   }
   print(paste0('Found ', length(barcode_sets[[2]]), " sets, tested ", dim(to_test)[1], " sets."))
-  
-  cluster_props = list()
-  cluster_num = 2
   
   while (length(names(barcode_sets[[cluster_num]])) > 0 & cluster_num < max_cluster_size) {
     cluster_num = cluster_num + 1
     
     prev_cluster_size = cluster_num - 1
     
-    previous_kinase_combinations = sort(names(barcode_sets[[prev_cluster_size]]))
-    
     barcode_sets[[cluster_num]] = list()
-    cluster_props[[cluster_num]] = list()
     
-    print(paste0('Working on building possible ', cluster_num, " clusters."))
-    pb <- progress_bar$new(format = "[:bar] :percent eta: :eta",
-                           total = length(previous_kinase_combinations))
+    #############################################################################
+    # Building List of Possible Cluster Sets
+    #############################################################################
+    print(paste0('Building list of genes to search for ', cluster_num, " clusters."))
+    start_search <- proc.time()
+    previous_combinations = sort(names(barcode_sets[[prev_cluster_size]]))
+    split_search_combinations = split(previous_combinations,rep(1:num_cores,length.out=length(previous_combinations)));
+    split_possible_combinations = mclapply(split_search_combinations,
+                                           function(x) { find_potential_gene_overlap(x,previous_combinations) },
+                                           mc.cores = num_cores
+    )
     
     to_test = data.frame(previous_set=as.character(),added_gene=as.character())
-    tested_count = 0;
-    for (this_combination in previous_kinase_combinations) {
-      pb$tick()
-      
-      starting_gene_set = strsplit(this_combination,'\\|')[[1]]
-      
-      search_set = glue::collapse(starting_gene_set[2:length(starting_gene_set)],sep="\\|")
-      
-      matching_clusters = grep(paste0('^',search_set),previous_kinase_combinations, value=TRUE)
-      last_gene = sapply(matching_clusters,function(x) { tail(strsplit(x,'\\|')[[1]],1) })
-      if (length(last_gene) == 0) {
-        next;
-      }
-      to_test = to_test %>% add_row(previous_set = this_combination,added_gene = last_gene)
-      
-      if (dim(to_test)[1] > parallel_process_set_size) {
-        split_sets = split(to_test,
-                           rep(1:(parallel::detectCores()-1),
-                               length.out = dim(to_test)[1]))
-        
-        overlap_sets_split = mclapply(split_sets,
-                                      function(x) { overlap_gene_sets(x,barcode_sets,prev_cluster_size,min_shared_cells); },
-                                      mc.cores=num_cores);
-        
-        for (this_overlap_set in overlap_sets_split) {
-          for (this_combo in names(this_overlap_set)) {
-            barcode_sets[[cluster_num]][[this_combo]] = this_overlap_set[[this_combo]]
-          }
-        }
-        tested_count = tested_count + dim(to_test)[1]
-        to_test = data.frame(previous_set=as.character(),added_gene=as.character())
-      }
+    for (this_combination_set in split_possible_combinations) {
+      to_test = rbind(to_test,this_combination_set)
     }
-    
+    print(proc.time() - start_search)
+    #############################################################################
+    # Testing Possible Clusters
+    #############################################################################
+    print(paste0('Searching for ', cluster_num, " clusters."))
+    start_filtering = proc.time();
     split_sets = split(to_test,
-                       rep(1:(parallel::detectCores()-1),
+                       rep(1:num_cores,
                            length.out = dim(to_test)[1]))
     
     overlap_sets_split = mclapply(split_sets,
@@ -341,12 +327,12 @@ gather_gene_sets_parallel <- function(tidy_10X,
         barcode_sets[[cluster_num]][[this_combo]] = this_overlap_set[[this_combo]]
       }
     }
-    tested_count = tested_count + dim(to_test)[1]
-    
-    print(paste0('Found ', length(barcode_sets[[cluster_num]]), " sets, tested ", tested_count, " sets."))
+    print(paste0('Found ', length(barcode_sets[[cluster_num]]), " sets, tested ", dim(to_test)[1], " sets."))
+    print(proc.time() - start_filtering)
     
   }
   
+  percent_cells = lapply(barcode_sets[[1]],function(x) { length(x)/total_cells })
   cluster_props = list();
   for (cluster_num in 2:(length(barcode_sets)-1)) {
     cluster_props[[cluster_num]] = list()
